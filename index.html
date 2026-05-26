@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>病院サイネージ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --c-ink: #102a44;
+    --c-ink-soft: #1f3a5a;
+    --c-blue: #1a4365;
+    --c-blue-deep: #0c2540;
+    --c-blue-light: #3b6a91;
+    --c-cream: #f7f3ea;
+    --c-cream-soft: #fbf9f3;
+    --c-paper: #ffffff;
+    --c-green: #5e8d6e;
+    --c-gold: #b8956b;
+    --c-gold-soft: #ecdfca;
+    --c-muted: #6b7a8c;
+    --c-border: rgba(26, 67, 101, 0.14);
+
+    --font-display: 'Shippori Mincho B1', 'Yu Mincho', serif;
+    --font-body: 'Zen Kaku Gothic New', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+
+    --ease: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* ボトムバー高さ（一覧ボタン） */
+    --bottom-bar-h: 76px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: var(--font-body);
+    color: var(--c-ink);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  img { display: block; }
+
+  /* ========= 画面共通 ========= */
+  .screen {
+    position: fixed; inset: 0;
+    opacity: 0; visibility: hidden;
+    transition: opacity 480ms var(--ease), visibility 480ms var(--ease);
+    overflow: hidden;
+    padding-bottom: var(--bottom-bar-h);
+  }
+  .screen.active { opacity: 1; visibility: visible; }
+
+  /* ========= 画面1（4分割スライドショー） ========= */
+  #screen-quad { background: var(--c-cream); display: flex; flex-direction: column; }
+  .quad-header {
+    flex: 0 0 auto;
+    padding: 0.9rem 1.6rem;
+    background: var(--c-paper);
+    border-bottom: 1px solid var(--c-border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .quad-brand {
+    display: flex; align-items: baseline; gap: 0.8rem;
+    font-family: var(--font-display);
+    font-size: 1.25rem; font-weight: 700;
+    color: var(--c-blue);
+    letter-spacing: 0.08em;
+  }
+  .quad-brand-sub {
+    font-family: var(--font-body);
+    font-size: 0.75rem; letter-spacing: 0.3em;
+    color: var(--c-muted);
+  }
+  .quad-grid {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px; padding: 10px;
+  }
+  .quad {
+    position: relative; border-radius: 14px;
+    overflow: hidden; background: var(--c-paper);
+    box-shadow: 0 4px 20px rgba(16, 42, 68, 0.06);
+    cursor: pointer;
+  }
+  .quad-label {
+    position: absolute; top: 12px; left: 14px; z-index: 3;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(6px);
+    padding: 5px 12px; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.18em; color: var(--c-blue);
+    border: 1px solid var(--c-border);
+  }
+  .quad-img-wrap {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff;
+    overflow: hidden;
+  }
+  .quad-img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    background: #fff;
+    transition: opacity 600ms var(--ease);
+  }
+  .quad-img.fade { opacity: 0; }
+  .quad-empty {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--c-muted);
+    font-size: 0.9rem; letter-spacing: 0.2em;
+    background: linear-gradient(135deg, #e8eef4, #d6e1ed);
+  }
+  .quad-progress {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: rgba(26, 67, 101, 0.08);
+    z-index: 4;
+  }
+  .quad-progress-bar {
+    position: absolute; top: 0; left: 0; bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, var(--c-blue), var(--c-gold));
+  }
+
+  /* ========= ポスター全画面 ========= */
+  #screen-poster {
+    background: #fff;
+  }
+  .poster-wrap {
+    position: absolute; inset: 0;
+    padding: 1.8rem;
+    padding-bottom: calc(1.8rem + var(--bottom-bar-h));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .poster-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  .poster-close {
+    position: fixed;
+    top: 1.6rem; right: 1.6rem;
+    z-index: 60;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--c-blue);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+    transition: background 200ms;
+  }
+  .poster-close:active { background: var(--c-gold-soft); }
+
+  /* ========= 画面2（PR動画） ========= */
+  #screen-video { background: #000; }
+  .video-stage {
+    position: absolute; inset: 0;
+    bottom: var(--bottom-bar-h);
+    display: flex; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse at 50% 40%, rgba(91,144,200,0.25), transparent 70%),
+      linear-gradient(135deg, #0c2540 0%, #1a1a2e 100%);
+  }
+  .video-element {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: contain; background: #000;
+  }
+  .video-fallback {
+    text-align: center; color: var(--c-cream);
+    z-index: 1; padding: 2rem;
+  }
+  .video-fallback-eyebrow {
+    font-size: 0.8rem; letter-spacing: 0.5em;
+    color: var(--c-gold-soft); margin-bottom: 1.6rem;
+  }
+  .video-fallback-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 5vw, 4rem);
+    font-weight: 700; letter-spacing: 0.08em;
+    margin-bottom: 1.8rem;
+  }
+  .video-fallback-loop {
+    font-size: 0.85rem;
+    letter-spacing: 0.3em;
+    color: var(--c-gold-soft);
+    margin-bottom: 2rem;
+    opacity: 0.85;
+  }
+  .video-play {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    border: 2px solid rgba(247,243,234,0.55);
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: 1.4rem; position: relative;
+  }
+  .video-play::after {
+    content: '';
+    position: absolute; inset: -12px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(247,243,234,0.2);
+    animation: ring 2.2s ease-out infinite;
+  }
+  @keyframes ring {
+    0%   { transform: scale(0.9); opacity: 0.9; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+  .video-play svg { width: 30px; height: 30px; fill: var(--c-cream); margin-left: 4px; }
+  .video-fallback-caption {
+    font-size: 0.95rem; letter-spacing: 0.3em; opacity: 0.7;
+  }
+
+  /* ========= 画面3（10秒動画 × 2） ========= */
+  #screen-shortvideo { background: #000; }
+  .shortvideo-stage {
+    position: absolute; inset: 0;
+    bottom: var(--bottom-bar-h);
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(91,144,200,0.45), transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(184,149,107,0.3), transparent 55%),
+      linear-gradient(135deg, #0c2540 0%, #1a4365 60%, #2c5778 100%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .shortvideo-stage::before {
+    content: '';
+    position: absolute; inset: -20%;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.06) 0%, transparent 60%);
+    animation: breathe 7s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%,100% { transform: scale(1); opacity: 0.6; }
+    50%     { transform: scale(1.15); opacity: 1; }
+  }
+  .shortvideo-fallback {
+    text-align: center; color: var(--c-cream);
+    z-index: 1; padding: 2rem;
+  }
+  .shortvideo-eyebrow {
+    font-size: 0.85rem; letter-spacing: 0.5em;
+    opacity: 0.6; margin-bottom: 1.6rem;
+    padding-left: 0.5em;
+  }
+  .shortvideo-title {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.6rem;
+  }
+  .shortvideo-sub {
+    font-family: var(--font-display);
+    font-size: clamp(1rem, 1.6vw, 1.4rem);
+    letter-spacing: 0.4em;
+    color: var(--c-gold-soft);
+    padding-left: 0.4em;
+    margin-bottom: 2rem;
+  }
+  .shortvideo-counter {
+    font-size: 0.85rem;
+    letter-spacing: 0.32em;
+    color: var(--c-gold-soft);
+    opacity: 0.85;
+  }
+  .shortvideo-element {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: contain; background: #000;
+  }
+
+  /* ========= 画面4（救急DX：画像スライドショー） ========= */
+  #screen-er {
+    background:
+      radial-gradient(ellipse at 80% 10%, rgba(184,149,107,0.12), transparent 60%),
+      var(--c-cream-soft);
+  }
+  .er-slideshow {
+    position: absolute;
+    inset: 0;
+    bottom: var(--bottom-bar-h);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.8rem;
+  }
+  .er-slide-img {
+    position: absolute;
+    max-width: calc(100% - 3.6rem);
+    max-height: calc(100% - 3.6rem);
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 600ms var(--ease);
+    box-shadow: 0 16px 50px rgba(16, 42, 68, 0.14);
+    border-radius: 12px;
+    background: #fff;
+  }
+  .er-slide-img.active { opacity: 1; }
+
+  /* ========= ボトムバー（一覧ボタン） ========= */
+  .bottom-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: var(--bottom-bar-h);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--c-border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 1.5rem;
+    z-index: 30;
+  }
+  .bottom-info {
+    display: flex; align-items: center; gap: 1.4rem;
+    color: var(--c-muted);
+    font-size: 0.78rem; letter-spacing: 0.25em;
+  }
+  .bottom-info-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--c-green);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+  .list-btn {
+    background: var(--c-blue);
+    color: var(--c-cream-soft);
+    padding: 0.8rem 2.4rem 0.8rem 2.7rem;
+    border-radius: 999px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.32em;
+    display: inline-flex; align-items: center; gap: 0.85rem;
+    transition: transform 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+    box-shadow: 0 6px 18px rgba(26, 67, 101, 0.28);
+  }
+  .list-btn:active {
+    transform: translateY(2px);
+    background: var(--c-blue-deep);
+    box-shadow: 0 3px 10px rgba(26, 67, 101, 0.32);
+  }
+  .list-btn-icon {
+    display: inline-flex; flex-direction: column; gap: 3px; width: 18px;
+  }
+  .list-btn-icon span {
+    display: block; height: 2px; background: var(--c-cream-soft); border-radius: 1px;
+  }
+  .list-btn-icon span:nth-child(1) { width: 100%; }
+  .list-btn-icon span:nth-child(2) { width: 70%; }
+  .list-btn-icon span:nth-child(3) { width: 100%; }
+
+  /* ========= ボトムシート（メニュー） ========= */
+  .sheet-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(12, 37, 64, 0.42);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0; visibility: hidden;
+    transition: opacity 320ms var(--ease), visibility 320ms var(--ease);
+    z-index: 40;
+  }
+  .sheet-backdrop.active { opacity: 1; visibility: visible; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    z-index: 41;
+    background: var(--c-cream-soft);
+    border-top-left-radius: 28px;
+    border-top-right-radius: 28px;
+    box-shadow: 0 -16px 50px rgba(0,0,0,0.32);
+    max-height: 88vh;
+    display: flex; flex-direction: column;
+    transform: translateY(105%);
+    transition: transform 420ms var(--ease-out);
+  }
+  .sheet.active { transform: translateY(0); }
+  .sheet-handle-wrap { flex: 0 0 auto; display: flex; justify-content: center; padding: 14px 0 4px; }
+  .sheet-handle { width: 56px; height: 5px; border-radius: 999px; background: rgba(26, 67, 101, 0.22); }
+  .sheet-header {
+    flex: 0 0 auto;
+    padding: 0.7rem 2rem 1.2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--c-border);
+  }
+  .sheet-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem; font-weight: 700;
+    color: var(--c-blue); letter-spacing: 0.14em;
+    display: flex; align-items: center; gap: 0.9rem;
+  }
+  .sheet-title-rule { display: inline-block; width: 28px; height: 2px; background: var(--c-gold); }
+  .close-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--c-cream);
+    color: var(--c-blue);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; transition: background 200ms;
+  }
+  .close-btn:active { background: var(--c-gold-soft); }
+  .sheet-body { overflow-y: auto; padding: 0.5rem 0 1.2rem; }
+
+  /* メニューセクション見出し */
+  .menu-divider {
+    padding: 1rem 2rem 0.4rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.4em;
+    color: var(--c-muted);
+    font-weight: 700;
+  }
+
+  .menu-section { border-bottom: 1px solid var(--c-border); }
+  .menu-section:last-child { border-bottom: none; }
+  .menu-toggle {
+    width: 100%;
+    padding: 1.2rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 1.05rem; font-weight: 500;
+    color: var(--c-ink);
+    text-align: left;
+    transition: background 180ms;
+  }
+  .menu-toggle:active { background: rgba(184, 149, 107, 0.12); }
+  .menu-toggle-label {
+    display: flex; align-items: baseline; gap: 0.9rem;
+    letter-spacing: 0.05em;
+  }
+  .menu-toggle-index {
+    font-family: var(--font-display);
+    font-size: 0.85rem; color: var(--c-gold);
+    letter-spacing: 0.16em; min-width: 38px;
+  }
+  .arrow {
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--c-blue-light);
+    transition: transform 320ms var(--ease-out), color 200ms;
+  }
+  .arrow svg { width: 14px; height: 14px; fill: currentColor; }
+  .menu-section.expanded .arrow { transform: rotate(180deg); color: var(--c-gold); }
+  .menu-toggle.direct .arrow { transform: rotate(-90deg); }
+  .submenu {
+    max-height: 0; overflow: hidden;
+    transition: max-height 380ms var(--ease-out);
+    background: rgba(255, 255, 255, 0.55);
+  }
+  .menu-section.expanded .submenu { max-height: 800px; }
+  .submenu-inner { padding: 0.3rem 0 0.8rem; }
+  .submenu-item {
+    width: 100%;
+    padding: 0.9rem 2rem 0.9rem 4.2rem;
+    display: flex; align-items: center; gap: 1rem;
+    font-size: 0.98rem;
+    color: var(--c-ink-soft);
+    text-align: left; letter-spacing: 0.04em;
+    transition: background 160ms;
+    border-left: 3px solid transparent;
+  }
+  .submenu-item:active {
+    background: var(--c-gold-soft);
+    border-left-color: var(--c-gold);
+  }
+  .submenu-item-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--c-blue-light); flex-shrink: 0;
+  }
+
+  /* ループカウンタ（右下にひっそり） */
+  .loop-pip {
+    position: fixed;
+    right: 1.5rem;
+    bottom: calc(var(--bottom-bar-h) + 10px);
+    z-index: 25;
+    background: rgba(12, 37, 64, 0.7);
+    color: rgba(247, 243, 234, 0.85);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 200ms;
+  }
+  .loop-pip.visible { opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<!-- ========= 画面1（4分割スライドショー） ========= -->
+<div class="screen active" id="screen-quad">
+  <div class="quad-header">
+    <div class="quad-brand">
+      院内ご案内<span class="quad-brand-sub">INFORMATION  BOARD</span>
+    </div>
+    <div class="quad-brand-sub" id="quad-clock">--:--</div>
+  </div>
+  <div class="quad-grid">
+    <div class="quad" data-quad="1">
+      <div class="quad-label">プレイリスト 1</div>
+      <div class="quad-img-wrap"><img class="quad-img" alt=""></div>
+      <div class="quad-progress"><div class="quad-progress-bar"></div></div>
+    </div>
+    <div class="quad" data-quad="2">
+      <div class="quad-label">プレイリスト 2</div>
+      <div class="quad-img-wrap"><img class="quad-img" alt=""></div>
+      <div class="quad-progress"><div class="quad-progress-bar"></div></div>
+    </div>
+    <div class="quad" data-quad="3">
+      <div class="quad-label">プレイリスト 3</div>
+      <div class="quad-img-wrap"><img class="quad-img" alt=""></div>
+      <div class="quad-progress"><div class="quad-progress-bar"></div></div>
+    </div>
+    <div class="quad" data-quad="4">
+      <div class="quad-label">プレイリスト 4</div>
+      <div class="quad-img-wrap"><img class="quad-img" alt=""></div>
+      <div class="quad-progress"><div class="quad-progress-bar"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========= ポスター全画面 ========= -->
+<div class="screen" id="screen-poster">
+  <button class="poster-close" id="poster-close" aria-label="閉じる">✕</button>
+  <div class="poster-wrap">
+    <img class="poster-img" id="poster-img" alt="">
+  </div>
+</div>
+
+<!-- ========= 画面2（PR動画） ========= -->
+<div class="screen" id="screen-video">
+  <div class="video-stage" id="video-stage"></div>
+</div>
+
+<!-- ========= 画面3（10秒動画 × 2） ========= -->
+<div class="screen" id="screen-shortvideo">
+  <div class="shortvideo-stage" id="shortvideo-stage"></div>
+</div>
+
+<!-- ========= 画面4（救急DX：2画面切替） ========= -->
+<div class="screen" id="screen-er">
+  <div class="er-slideshow" id="er-slideshow"></div>
+</div>
+
+<!-- ========= ボトムバー（常時表示） ========= -->
+<div class="bottom-bar">
+  <div class="bottom-info">
+    <span class="bottom-info-dot"></span>
+    <span id="now-playing">画面 1 / 4　─　掲示物 4分割</span>
+  </div>
+  <button class="list-btn" id="open-sheet">
+    <span class="list-btn-icon"><span></span><span></span><span></span></span>
+    一覧
+  </button>
+</div>
+
+<!-- ループカウンタ -->
+<div class="loop-pip" id="loop-pip">LOOP 1</div>
+
+<!-- ========= ボトムシート（メニュー） ========= -->
+<div class="sheet-backdrop" id="sheet-backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle-wrap"><div class="sheet-handle"></div></div>
+  <div class="sheet-header">
+    <div class="sheet-title">
+      <span class="sheet-title-rule"></span>一覧メニュー
+    </div>
+    <button class="close-btn" id="close-sheet" aria-label="閉じる">✕</button>
+  </div>
+  <div class="sheet-body" id="sheet-body">
+    <!-- JSで構築 -->
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     CONFIG ─ 全コンテンツと時間設定はここで管理
+     ========================================================= */
+  const CONFIG = {
+    // 画面1（4分割）の各クアドラントの画像配列
+    quadrants: {
+      1: [
+        { title: '産婦人科のご案内',         image: 'assets/obgyn.png' },
+        { title: '4Dエコー外来',             image: 'assets/echo4d.png' },
+        { title: '今週の外来担当医表',       image: 'assets/schedule.png' },
+        { title: '臨時休診のお知らせ',       image: 'assets/closure-notice.jpg' }
+      ],
+      2: [
+        { title: '健診・人間ドックのご案内', image: 'assets/checkup.png' },
+        { title: '手術件数・実績',           image: 'assets/surgery.png' },
+        { title: '施設基準のご案内',         image: 'assets/standards.png' }
+      ],
+      3: [
+        { title: '面会のご案内',             image: 'assets/visiting.png' },
+        { title: 'フロアマップ・施設案内',   image: 'assets/floormap.png' },
+        { title: 'AI電話の使い方案内',       image: 'assets/ai-phone.png' }
+      ],
+      4: [
+        { title: '地域連携・紹介状のご案内', image: 'assets/referral.png' },
+        { title: 'スタッフ募集（採用）',     image: 'assets/recruitment.png' },
+        { title: '保険外負担（自費）料金',   image: 'assets/outpatient-fees.png' },
+        { title: '保険医療機関の標識・管理者', image: 'assets/institution-info.png' }
+      ]
+    },
+
+    // 画面2（PR動画）— 周回ごとに切替
+    prVideos: [
+      'assets/pr1.mp4',    // 1周目: 映像1（アニメ動画_学会用短編）
+      'assets/pr2.mp4'     // 2周目: 映像2（学会用実写_30s）
+    ],
+
+    // 画面3（動画 or 画像を10秒×2回 = 20秒表示。拡張子で自動判別）
+    screen3Video: 'assets/joy.mp4',      // 動画(.mp4)も画像(.jpg等)もOK
+
+    // 画面4（救急DX）— 順番に切替表示される画像
+    screen4Images: [
+      'assets/er-decision.png',          // 判断支援ツール型
+      'assets/er-info.png'               // 情報共有ツール型
+    ],
+
+    // タイミング設定（ミリ秒）
+    timings: {
+      slideEach:   10000,   // 画面1 各クアドラントの1枚あたり
+      screen1Total: 40000,  // 画面1 全体（10s × 4 = 最長プレイリストに合わせる）
+      screen2Fallback: 20000, // 画面2 動画がない場合の表示時間
+      screen3Each: 10000,   // 画面3 1回あたり（10秒）
+      screen3Repeats: 2,    // 画面3 再生回数
+      screen4Each: 10000    // 画面4 1枚あたり（10秒×画像枚数）
+    }
+  };
+
+  /* =========================================================
+     状態
+     ========================================================= */
+  const screens = {
+    quad:       document.getElementById('screen-quad'),
+    poster:     document.getElementById('screen-poster'),
+    video:      document.getElementById('screen-video'),
+    shortvideo: document.getElementById('screen-shortvideo'),
+    er:         document.getElementById('screen-er'),
+  };
+  const sheet         = document.getElementById('sheet');
+  const sheetBackdrop = document.getElementById('sheet-backdrop');
+  const sheetBody     = document.getElementById('sheet-body');
+  const nowPlayingEl  = document.getElementById('now-playing');
+  const loopPip       = document.getElementById('loop-pip');
+
+  let loopCount = 1;             // 周回数（1始まり）
+  let timers = [];               // 全タイマー管理
+  let currentScreen = null;      // 現在の画面名
+  let onPosterCloseTarget = 'quad'; // ポスター閉じる時の戻り先
+  let screen4ImageIdx = 0;       // 画面4の現在の画像インデックス
+
+  function clearTimers() {
+    timers.forEach(t => clearTimeout(t));
+    timers.forEach(t => clearInterval(t));
+    timers = [];
+  }
+  function addTimer(t) { timers.push(t); return t; }
+
+  function setActive(name) {
+    Object.values(screens).forEach(el => el.classList.remove('active'));
+    screens[name].classList.add('active');
+    currentScreen = name;
+    updateNowPlaying();
+  }
+
+  function updateNowPlaying() {
+    const erTotal = (CONFIG.screen4Images || []).length;
+    const labels = {
+      quad:       '画面 1 / 4　─　掲示物 4分割',
+      video:      `画面 2 / 4　─　PR動画（${loopCount % 2 === 1 ? '映像 1' : '映像 2'}）`,
+      shortvideo: '画面 3 / 4　─　今どこJOY',
+      er:         erTotal > 1
+                    ? `画面 4 / 4　─　救急DX (${screen4ImageIdx + 1}/${erTotal})`
+                    : '画面 4 / 4　─　救急DX',
+      poster:     '掲示物 全画面'
+    };
+    nowPlayingEl.textContent = labels[currentScreen] || '';
+    loopPip.textContent = `LOOP ${loopCount}`;
+    loopPip.classList.add('visible');
+  }
+
+  /* =========================================================
+     自動フロー: 画面1 → 2 → 3 → 4 → 1
+     ========================================================= */
+  function enterScreen1() {
+    clearTimers();
+    setActive('quad');
+    startQuadrantSlideshows();
+    // 30秒後に画面2へ
+    addTimer(setTimeout(enterScreen2, CONFIG.timings.screen1Total));
+  }
+
+  function enterScreen2() {
+    clearTimers();
+    setActive('video');
+    const idx = (loopCount - 1) % 2;        // 1周目→映像1, 2周目→映像2
+    const src = CONFIG.prVideos[idx];
+    const stage = document.getElementById('video-stage');
+    const which = idx === 0 ? '映像 1' : '映像 2';
+
+    if (src) {
+      stage.innerHTML = `
+        <video class="video-element" autoplay muted playsinline preload="auto">
+          <source src="${src}" type="video/mp4">
+        </video>`;
+      const v = stage.querySelector('video');
+      v.muted = true;
+      v.addEventListener('ended', enterScreen3);
+      v.addEventListener('error', (e) => {
+        console.error('[画面2] 動画エラー:', e, v.error);
+        // 失敗時はフォールバック表示してフロー継続
+        stage.innerHTML = `
+          <div class="video-fallback">
+            <div class="video-fallback-eyebrow">PR  VIDEO</div>
+            <div class="video-fallback-title">${which}</div>
+            <div class="video-fallback-loop">LOOP ${loopCount} 周目 / 動画読込失敗</div>
+            <div class="video-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+            <div class="video-fallback-caption">再生中</div>
+          </div>`;
+        addTimer(setTimeout(enterScreen3, CONFIG.timings.screen2Fallback));
+      });
+      const playPromise = v.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch((err) => {
+          console.error('[画面2] 再生開始失敗:', err);
+        });
+      }
+      // 念のためフェイルセーフ
+      addTimer(setTimeout(() => {
+        if (currentScreen === 'video') enterScreen3();
+      }, 1000 * 60 * 30));  // 30分タイムアウト保険
+    } else {
+      stage.innerHTML = `
+        <div class="video-fallback">
+          <div class="video-fallback-eyebrow">PR  VIDEO</div>
+          <div class="video-fallback-title">${which}</div>
+          <div class="video-fallback-loop">LOOP ${loopCount} 周目</div>
+          <div class="video-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+          <div class="video-fallback-caption">再生中</div>
+        </div>`;
+      addTimer(setTimeout(enterScreen3, CONFIG.timings.screen2Fallback));
+    }
+  }
+
+  function enterScreen3() {
+    clearTimers();
+    setActive('shortvideo');
+    const src = CONFIG.screen3Video;
+    const stage = document.getElementById('shortvideo-stage');
+
+    let playCount = 0;
+    const totalPlays = CONFIG.timings.screen3Repeats;
+
+    function renderPlaceholder() {
+      stage.innerHTML = `
+        <div class="shortvideo-fallback">
+          <div class="shortvideo-eyebrow">NOW  PLAYING</div>
+          <div class="shortvideo-title">今どこJOY</div>
+          <div class="shortvideo-sub">IMA  DOKO  JOY</div>
+          <div class="shortvideo-counter">${playCount + 1} / ${totalPlays} 回目</div>
+        </div>`;
+    }
+
+    function playOnce() {
+      playCount++;
+      // 拡張子で動画/画像を判別
+      const isVideo = src && /\.(mp4|webm|mov|m4v|ogv)(\?|$)/i.test(src);
+      const isImage = src && /\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(src);
+
+      if (isVideo) {
+        stage.innerHTML = `
+          <video class="shortvideo-element" autoplay muted playsinline preload="auto">
+            <source src="${src}" type="video/mp4">
+          </video>`;
+        const v = stage.querySelector('video');
+        v.muted = true;
+        v.addEventListener('ended', onPlayEnd);
+        v.addEventListener('error', (e) => {
+          console.error('[画面3] 動画エラー:', e, v.error);
+          renderPlaceholder();
+          addTimer(setTimeout(onPlayEnd, CONFIG.timings.screen3Each));
+        });
+        const playPromise = v.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch((err) => {
+            console.error('[画面3] 再生開始失敗:', err);
+            renderPlaceholder();
+            addTimer(setTimeout(onPlayEnd, CONFIG.timings.screen3Each));
+          });
+        }
+      } else if (isImage) {
+        // 画像として表示（10秒間）
+        stage.innerHTML = `
+          <img class="shortvideo-element" src="${src}" alt="今どこJOY"
+               style="object-fit: contain; background: #000;">`;
+        addTimer(setTimeout(onPlayEnd, CONFIG.timings.screen3Each));
+      } else {
+        renderPlaceholder();
+        addTimer(setTimeout(onPlayEnd, CONFIG.timings.screen3Each));
+      }
+    }
+
+    function onPlayEnd() {
+      if (playCount < totalPlays) {
+        playOnce();
+      } else {
+        enterScreen4();
+      }
+    }
+
+    playOnce();
+  }
+
+  function enterScreen4() {
+    clearTimers();
+    setActive('er');
+    const images = CONFIG.screen4Images || [];
+    const container = document.getElementById('er-slideshow');
+
+    // 画像要素を再構築
+    container.innerHTML = '';
+    images.forEach((src, i) => {
+      const img = document.createElement('img');
+      img.className = 'er-slide-img';
+      img.src = src;
+      img.alt = `救急DX ${i + 1}`;
+      container.appendChild(img);
+    });
+
+    if (images.length === 0) {
+      addTimer(setTimeout(() => { loopCount++; enterScreen1(); }, 3000));
+      return;
+    }
+
+    // 最初の画像を表示
+    const imgs = container.querySelectorAll('.er-slide-img');
+    screen4ImageIdx = 0;
+    imgs[0].classList.add('active');
+    updateNowPlaying();
+
+    function step() {
+      screen4ImageIdx++;
+      if (screen4ImageIdx >= images.length) {
+        // 全て表示終わったら次の周回へ
+        loopCount++;
+        enterScreen1();
+        return;
+      }
+      imgs.forEach((el, k) => el.classList.toggle('active', k === screen4ImageIdx));
+      updateNowPlaying();
+      addTimer(setTimeout(step, CONFIG.timings.screen4Each));
+    }
+
+    addTimer(setTimeout(step, CONFIG.timings.screen4Each));
+  }
+
+  /* =========================================================
+     画面1の4分割スライドショー
+     ========================================================= */
+  function startQuadrantSlideshows() {
+    for (let q = 1; q <= 4; q++) {
+      startQuadrant(q);
+    }
+    // 全体プログレスバー用の更新（30秒間）
+    const startTs = Date.now();
+    addTimer(setInterval(() => {
+      const elapsed = Date.now() - startTs;
+      // 各クアドラントの10秒枠のプログレス
+      const slot = elapsed % CONFIG.timings.slideEach;
+      const ratio = slot / CONFIG.timings.slideEach;
+      document.querySelectorAll('.quad-progress-bar').forEach(b => {
+        b.style.width = `${Math.min(100, ratio * 100)}%`;
+      });
+    }, 80));
+  }
+
+  function startQuadrant(q) {
+    const list = CONFIG.quadrants[q] || [];
+    const wrap = document.querySelector(`.quad[data-quad="${q}"]`);
+    const img = wrap.querySelector('.quad-img');
+    if (list.length === 0) {
+      // 空のクアドラント
+      img.style.display = 'none';
+      const empty = document.createElement('div');
+      empty.className = 'quad-empty';
+      empty.textContent = '（コンテンツ未設定）';
+      wrap.querySelector('.quad-img-wrap').appendChild(empty);
+      return;
+    }
+    let idx = 0;
+    // クアドラントが現在表示中の画像と項目をdata属性として保持
+    function show(i) {
+      const item = list[i % list.length];
+      img.classList.add('fade');
+      setTimeout(() => {
+        img.src = item.image;
+        img.alt = item.title;
+        wrap.dataset.currentTitle = item.title;
+        wrap.dataset.currentImage = item.image;
+        img.classList.remove('fade');
+      }, 200);
+    }
+    show(0);
+    addTimer(setInterval(() => {
+      idx++;
+      show(idx);
+    }, CONFIG.timings.slideEach));
+  }
+
+  /* =========================================================
+     クアドラントタップ → 全画面表示
+     ========================================================= */
+  document.querySelectorAll('.quad').forEach(wrap => {
+    wrap.addEventListener('click', () => {
+      const image = wrap.dataset.currentImage;
+      const title = wrap.dataset.currentTitle;
+      if (!image) return;
+      openPoster(image, title);
+    });
+  });
+
+  function openPoster(image, title) {
+    clearTimers();
+    onPosterCloseTarget = 'quad';
+    document.getElementById('poster-img').src = image;
+    document.getElementById('poster-img').alt = title || '';
+    setActive('poster');
+  }
+
+  document.getElementById('poster-close').addEventListener('click', () => {
+    // ポスターを閉じる → 画面1（自動フロー再開）
+    enterScreen1();
+  });
+
+  /* =========================================================
+     一覧シート構築
+     ========================================================= */
+  function buildSheet() {
+    sheetBody.innerHTML = '';
+
+    // セクション見出し: 画面
+    const head1 = document.createElement('div');
+    head1.className = 'menu-divider';
+    head1.textContent = '◆  画面（自動再生に復帰）';
+    sheetBody.appendChild(head1);
+
+    [
+      { idx: '01', label: '画面 1：4分割スライドショー', fn: enterScreen1 },
+      { idx: '02', label: '画面 2：PR動画',               fn: enterScreen2 },
+      { idx: '03', label: '画面 3：今どこJOY',            fn: enterScreen3 },
+      { idx: '04', label: '画面 4：救急DX',               fn: enterScreen4 }
+    ].forEach(item => {
+      sheetBody.appendChild(makeDirectItem({
+        index: item.idx, label: item.label,
+        onTap: () => { closeSheet(); item.fn(); }
+      }));
+    });
+
+    // セクション見出し: ポスター
+    const head2 = document.createElement('div');
+    head2.className = 'menu-divider';
+    head2.textContent = '◆  個別ポスター';
+    sheetBody.appendChild(head2);
+
+    [1,2,3,4].forEach(n => {
+      const items = (CONFIG.quadrants[n] || []).map(p => ({
+        label: p.title,
+        onTap: () => { closeSheet(); openPoster(p.image, p.title); }
+      }));
+      sheetBody.appendChild(makeExpandable({
+        index: String(n).padStart(2, '0'),
+        label: `プレイリスト ${n}`,
+        items: items
+      }));
+    });
+  }
+
+  function makeExpandable({ index, label, items }) {
+    const section = document.createElement('div');
+    section.className = 'menu-section';
+    section.innerHTML = `
+      <button class="menu-toggle">
+        <span class="menu-toggle-label">
+          <span class="menu-toggle-index">${index}</span>${escapeHtml(label)}
+        </span>
+        <span class="arrow"><svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></span>
+      </button>
+      <div class="submenu"><div class="submenu-inner"></div></div>`;
+    const inner = section.querySelector('.submenu-inner');
+    items.forEach(it => {
+      const b = document.createElement('button');
+      b.className = 'submenu-item';
+      b.innerHTML = `<span class="submenu-item-dot"></span>${escapeHtml(it.label)}`;
+      b.addEventListener('click', it.onTap);
+      inner.appendChild(b);
+    });
+    section.querySelector('.menu-toggle').addEventListener('click', () => {
+      const wasOpen = section.classList.contains('expanded');
+      document.querySelectorAll('.menu-section.expanded').forEach(s => s.classList.remove('expanded'));
+      if (!wasOpen) section.classList.add('expanded');
+    });
+    return section;
+  }
+
+  function makeDirectItem({ index, label, onTap }) {
+    const section = document.createElement('div');
+    section.className = 'menu-section';
+    section.innerHTML = `
+      <button class="menu-toggle direct">
+        <span class="menu-toggle-label">
+          <span class="menu-toggle-index">${index}</span>${escapeHtml(label)}
+        </span>
+        <span class="arrow"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5v10z"/></svg></span>
+      </button>`;
+    section.querySelector('.menu-toggle').addEventListener('click', onTap);
+    return section;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+
+  function openSheet() {
+    // メニューを開く＝自動フローを止める（タイマー停止）
+    clearTimers();
+    sheetBackdrop.classList.add('active');
+    sheet.classList.add('active');
+  }
+
+  function closeSheet() {
+    sheetBackdrop.classList.remove('active');
+    sheet.classList.remove('active');
+    document.querySelectorAll('.menu-section.expanded').forEach(s => s.classList.remove('expanded'));
+  }
+
+  // 一覧ボタン
+  document.getElementById('open-sheet').addEventListener('click', openSheet);
+  document.getElementById('close-sheet').addEventListener('click', () => {
+    closeSheet();
+    // 何も選ばずに閉じた場合は、現在の画面を再スタート（または画面1へ）
+    if (currentScreen === 'quad')       enterScreen1();
+    else if (currentScreen === 'video')      enterScreen2();
+    else if (currentScreen === 'shortvideo') enterScreen3();
+    else if (currentScreen === 'er')         enterScreen4();
+    else                                      enterScreen1();
+  });
+  sheetBackdrop.addEventListener('click', () => {
+    closeSheet();
+    if (currentScreen === 'quad')       enterScreen1();
+    else if (currentScreen === 'video')      enterScreen2();
+    else if (currentScreen === 'shortvideo') enterScreen3();
+    else if (currentScreen === 'er')         enterScreen4();
+    else                                      enterScreen1();
+  });
+
+  /* =========================================================
+     時計
+     ========================================================= */
+  (function clock() {
+    const el = document.getElementById('quad-clock');
+    function tick() {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      el.textContent = `${hh}:${mm}`;
+    }
+    tick();
+    setInterval(tick, 1000 * 15);
+  })();
+
+  /* =========================================================
+     起動
+     ========================================================= */
+  buildSheet();
+  enterScreen1();   // 画面1から自動フロー開始
+
+})();
+</script>
+</body>
+</html>
